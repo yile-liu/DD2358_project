@@ -1,0 +1,281 @@
+particleCap,steps,rank,function,lineno,hits,time_s,code
+25,100,1,main,190,2161392,8.4228,"                coords[n,0], coords[n,1] =  coordsToCheck[0][n], coordsToCheck[1][n]"
+25,100,2,main,195,2161392,6.7655,"                row = int(coords[n,0])"
+25,100,3,main,196,2161392,6.6195,"                column = int(coords[n,1])"
+25,100,4,main,197,2161392,5.3901,"                check = correlationLattice[row, column]"
+25,100,5,main,198,2161392,5.3488,                if check == 0:
+25,100,6,main,199,2155837,5.0040,                    empty += 1
+25,100,7,main,194,2161632,3.6710,            for n in range(len(coords)):
+25,100,8,main,189,2161632,3.4497,            for n in range(len(coordsToCheck[0])):
+25,100,9,main,144,24,2.1644,"                    lattice, stickyLattice = particle_collision(logicCheck, path, lattice, stickyLattice, particleNumber)"
+25,100,10,particle_collision,58,24,1.0710,    stickyInitialTest = np.nonzero(lattice)
+25,100,11,main,145,24,1.0529,"                    latticeRadiusMax, radius, killRadius = lattice_radius_check(lattice, length, radius, killRadius)"
+25,100,12,particle_collision,68,24,1.0481,    latticeCheck = np.nonzero(lattice)
+25,100,13,lattice_radius_check,78,24,1.0467,    latticeRadiusInitial = np.nonzero(lattice)
+25,100,14,main,130,345,0.5601,"            path = generate_path(steps, startingPosition)"
+25,100,15,main,184,22128,0.3146,"                correlationLattice[row] = lattice[int(referenceParticleRow+radiusCircle-row),int(referenceParticleColumn-radiusCircle):int(referenceParticleColumn+radiusCircle+1)]"
+25,100,16,generate_path,47,34155,0.2770,        path[n+1] = particlePosition + movements[direction[n]]
+25,100,17,main,135,33518,0.2285,"                    logicCheck[n] = stickyLattice[int(path[n,0]), int(path[n,1])] == 1"
+25,100,18,main,187,240,0.1253,            coordsToCheck = np.where(circleSelection == True)
+25,100,19,main,185,240,0.0989,"            circleX, circleY = np.ogrid[-radiusCircle:radiusCircle+1, -radiusCircle:radiusCircle+1]"
+25,100,20,main,141,33518,0.0863,                if logicCheck[n] == 1:
+25,1000,1,main,190,2161392,8.4982,"                coords[n,0], coords[n,1] =  coordsToCheck[0][n], coordsToCheck[1][n]"
+25,1000,2,main,195,2161392,6.9049,"                row = int(coords[n,0])"
+25,1000,3,main,196,2161392,6.5436,"                column = int(coords[n,1])"
+25,1000,4,main,198,2161392,5.5315,                if check == 0:
+25,1000,5,main,197,2161392,5.3111,"                check = correlationLattice[row, column]"
+25,1000,6,main,199,2155843,4.9869,                    empty += 1
+25,1000,7,main,194,2161632,3.6841,            for n in range(len(coords)):
+25,1000,8,main,189,2161632,3.5446,            for n in range(len(coordsToCheck[0])):
+25,1000,9,main,144,24,2.8875,"                    lattice, stickyLattice = particle_collision(logicCheck, path, lattice, stickyLattice, particleNumber)"
+25,1000,10,particle_collision,58,24,1.4127,    stickyInitialTest = np.nonzero(lattice)
+25,1000,11,particle_collision,68,24,1.4116,    latticeCheck = np.nonzero(lattice)
+25,1000,12,main,145,24,1.4008,"                    latticeRadiusMax, radius, killRadius = lattice_radius_check(lattice, length, radius, killRadius)"
+25,1000,13,lattice_radius_check,78,24,1.3865,    latticeRadiusInitial = np.nonzero(lattice)
+25,1000,14,main,130,80,1.2495,"            path = generate_path(steps, startingPosition)"
+25,1000,15,generate_path,47,79920,0.6646,        path[n+1] = particlePosition + movements[direction[n]]
+25,1000,16,main,135,62963,0.4383,"                    logicCheck[n] = stickyLattice[int(path[n,0]), int(path[n,1])] == 1"
+25,1000,17,main,184,22128,0.3138,"                correlationLattice[row] = lattice[int(referenceParticleRow+radiusCircle-row),int(referenceParticleColumn-radiusCircle):int(referenceParticleColumn+radiusCircle+1)]"
+25,1000,18,generate_path,48,79920,0.1736,        particlePosition = path[n+1]
+25,1000,19,main,141,62963,0.1668,                if logicCheck[n] == 1:
+25,1000,20,main,187,240,0.1310,            coordsToCheck = np.where(circleSelection == True)
+50,100,1,main,190,4412842,17.0992,"                coords[n,0], coords[n,1] =  coordsToCheck[0][n], coordsToCheck[1][n]"
+50,100,2,main,196,4412842,13.3915,"                column = int(coords[n,1])"
+50,100,3,main,195,4412842,13.1295,"                row = int(coords[n,0])"
+50,100,4,main,198,4412842,11.3600,                if check == 0:
+50,100,5,main,197,4412842,10.5078,"                check = correlationLattice[row, column]"
+50,100,6,main,199,4390767,9.7957,                    empty += 1
+50,100,7,main,194,4413332,7.4315,            for n in range(len(coords)):
+50,100,8,main,189,4413332,7.0743,            for n in range(len(coordsToCheck[0])):
+50,100,9,main,144,49,4.5342,"                    lattice, stickyLattice = particle_collision(logicCheck, path, lattice, stickyLattice, particleNumber)"
+50,100,10,particle_collision,58,49,2.2154,    stickyInitialTest = np.nonzero(lattice)
+50,100,11,particle_collision,68,49,2.1533,    latticeCheck = np.nonzero(lattice)
+50,100,12,main,145,49,2.1524,"                    latticeRadiusMax, radius, killRadius = lattice_radius_check(lattice, length, radius, killRadius)"
+50,100,13,lattice_radius_check,78,49,2.1379,    latticeRadiusInitial = np.nonzero(lattice)
+50,100,14,main,130,501,0.8166,"            path = generate_path(steps, startingPosition)"
+50,100,15,main,184,45178,0.6080,"                correlationLattice[row] = lattice[int(referenceParticleRow+radiusCircle-row),int(referenceParticleColumn-radiusCircle):int(referenceParticleColumn+radiusCircle+1)]"
+50,100,16,generate_path,47,49599,0.3976,        path[n+1] = particlePosition + movements[direction[n]]
+50,100,17,main,135,47799,0.3321,"                    logicCheck[n] = stickyLattice[int(path[n,0]), int(path[n,1])] == 1"
+50,100,18,main,187,490,0.2360,            coordsToCheck = np.where(circleSelection == True)
+50,100,19,main,185,490,0.1620,"            circleX, circleY = np.ogrid[-radiusCircle:radiusCircle+1, -radiusCircle:radiusCircle+1]"
+50,100,20,main,182,490,0.1529,"            correlationLattice = np.zeros(shape=((2*radiusCircle)+1,(2*radiusCircle)+1))"
+50,1000,1,main,190,4412842,16.9755,"                coords[n,0], coords[n,1] =  coordsToCheck[0][n], coordsToCheck[1][n]"
+50,1000,2,main,195,4412842,13.6426,"                row = int(coords[n,0])"
+50,1000,3,main,196,4412842,13.6122,"                column = int(coords[n,1])"
+50,1000,4,main,198,4412842,11.2547,                if check == 0:
+50,1000,5,main,197,4412842,10.4608,"                check = correlationLattice[row, column]"
+50,1000,6,main,199,4390780,9.8643,                    empty += 1
+50,1000,7,main,194,4413332,7.4271,            for n in range(len(coords)):
+50,1000,8,main,189,4413332,7.0409,            for n in range(len(coordsToCheck[0])):
+50,1000,9,main,144,49,4.7890,"                    lattice, stickyLattice = particle_collision(logicCheck, path, lattice, stickyLattice, particleNumber)"
+50,1000,10,particle_collision,58,49,2.3444,    stickyInitialTest = np.nonzero(lattice)
+50,1000,11,particle_collision,68,49,2.2746,    latticeCheck = np.nonzero(lattice)
+50,1000,12,main,145,49,2.2374,"                    latticeRadiusMax, radius, killRadius = lattice_radius_check(lattice, length, radius, killRadius)"
+50,1000,13,lattice_radius_check,78,49,2.2200,    latticeRadiusInitial = np.nonzero(lattice)
+50,1000,14,main,130,126,1.9221,"            path = generate_path(steps, startingPosition)"
+50,1000,15,generate_path,47,125874,1.0280,        path[n+1] = particlePosition + movements[direction[n]]
+50,1000,16,main,135,93033,0.6334,"                    logicCheck[n] = stickyLattice[int(path[n,0]), int(path[n,1])] == 1"
+50,1000,17,main,184,45178,0.6148,"                correlationLattice[row] = lattice[int(referenceParticleRow+radiusCircle-row),int(referenceParticleColumn-radiusCircle):int(referenceParticleColumn+radiusCircle+1)]"
+50,1000,18,generate_path,48,125874,0.2683,        particlePosition = path[n+1]
+50,1000,19,main,187,490,0.2475,            coordsToCheck = np.where(circleSelection == True)
+50,1000,20,main,141,93033,0.2337,                if logicCheck[n] == 1:
+100,100,1,main,190,8915742,34.5214,"                coords[n,0], coords[n,1] =  coordsToCheck[0][n], coordsToCheck[1][n]"
+100,100,2,main,195,8915742,27.8871,"                row = int(coords[n,0])"
+100,100,3,main,196,8915742,27.7803,"                column = int(coords[n,1])"
+100,100,4,main,198,8915742,23.1675,                if check == 0:
+100,100,5,main,197,8915742,21.6333,"                check = correlationLattice[row, column]"
+100,100,6,main,199,8828395,19.8924,                    empty += 1
+100,100,7,main,194,8916732,14.9305,            for n in range(len(coords)):
+100,100,8,main,189,8916732,14.1470,            for n in range(len(coordsToCheck[0])):
+100,100,9,main,144,99,9.3548,"                    lattice, stickyLattice = particle_collision(logicCheck, path, lattice, stickyLattice, particleNumber)"
+100,100,10,particle_collision,58,99,4.4080,    stickyInitialTest = np.nonzero(lattice)
+100,100,11,main,145,99,4.3872,"                    latticeRadiusMax, radius, killRadius = lattice_radius_check(lattice, length, radius, killRadius)"
+100,100,12,particle_collision,68,99,4.3582,    latticeCheck = np.nonzero(lattice)
+100,100,13,lattice_radius_check,78,99,4.3543,    latticeRadiusInitial = np.nonzero(lattice)
+100,100,14,main,130,825,1.3482,"            path = generate_path(steps, startingPosition)"
+100,100,15,main,184,91278,1.2245,"                correlationLattice[row] = lattice[int(referenceParticleRow+radiusCircle-row),int(referenceParticleColumn-radiusCircle):int(referenceParticleColumn+radiusCircle+1)]"
+100,100,16,generate_path,47,81675,0.6607,        path[n+1] = particlePosition + movements[direction[n]]
+100,100,17,main,135,78079,0.5343,"                    logicCheck[n] = stickyLattice[int(path[n,0]), int(path[n,1])] == 1"
+100,100,18,main,187,990,0.4728,            coordsToCheck = np.where(circleSelection == True)
+100,100,19,main,188,990,0.3658,"            coords = np.zeros(shape=(len(coordsToCheck[0]),2))"
+100,100,20,main,182,990,0.3182,"            correlationLattice = np.zeros(shape=((2*radiusCircle)+1,(2*radiusCircle)+1))"
+100,1000,1,main,190,8915742,34.3984,"                coords[n,0], coords[n,1] =  coordsToCheck[0][n], coordsToCheck[1][n]"
+100,1000,2,main,195,8915742,27.5010,"                row = int(coords[n,0])"
+100,1000,3,main,196,8915742,26.7908,"                column = int(coords[n,1])"
+100,1000,4,main,198,8915742,22.3519,                if check == 0:
+100,1000,5,main,197,8915742,21.4270,"                check = correlationLattice[row, column]"
+100,1000,6,main,199,8829269,19.6907,                    empty += 1
+100,1000,7,main,194,8916732,15.1333,            for n in range(len(coords)):
+100,1000,8,main,189,8916732,14.0600,            for n in range(len(coordsToCheck[0])):
+100,1000,9,main,144,99,9.8523,"                    lattice, stickyLattice = particle_collision(logicCheck, path, lattice, stickyLattice, particleNumber)"
+100,1000,10,particle_collision,58,99,4.6472,    stickyInitialTest = np.nonzero(lattice)
+100,1000,11,particle_collision,68,99,4.5747,    latticeCheck = np.nonzero(lattice)
+100,1000,12,main,145,99,4.5550,"                    latticeRadiusMax, radius, killRadius = lattice_radius_check(lattice, length, radius, killRadius)"
+100,1000,13,lattice_radius_check,78,99,4.5190,    latticeRadiusInitial = np.nonzero(lattice)
+100,1000,14,main,130,206,3.1341,"            path = generate_path(steps, startingPosition)"
+100,1000,15,generate_path,47,205794,1.6743,        path[n+1] = particlePosition + movements[direction[n]]
+100,1000,16,main,184,91278,1.2466,"                correlationLattice[row] = lattice[int(referenceParticleRow+radiusCircle-row),int(referenceParticleColumn-radiusCircle):int(referenceParticleColumn+radiusCircle+1)]"
+100,1000,17,main,135,132143,0.8898,"                    logicCheck[n] = stickyLattice[int(path[n,0]), int(path[n,1])] == 1"
+100,1000,18,main,187,990,0.4814,            coordsToCheck = np.where(circleSelection == True)
+100,1000,19,generate_path,48,205794,0.4333,        particlePosition = path[n+1]
+100,1000,20,main,141,132143,0.3428,                if logicCheck[n] == 1:
+250,100,1,main,190,22424442,87.4586,"                coords[n,0], coords[n,1] =  coordsToCheck[0][n], coordsToCheck[1][n]"
+250,100,2,main,195,22424442,69.9642,"                row = int(coords[n,0])"
+250,100,3,main,196,22424442,68.8914,"                column = int(coords[n,1])"
+250,100,4,main,198,22424442,57.0670,                if check == 0:
+250,100,5,main,197,22424442,54.2931,"                check = correlationLattice[row, column]"
+250,100,6,main,199,21919316,50.8094,                    empty += 1
+250,100,7,main,194,22426932,37.8577,            for n in range(len(coords)):
+250,100,8,main,189,22426932,35.9566,            for n in range(len(coordsToCheck[0])):
+250,100,9,main,144,249,30.6375,"                    lattice, stickyLattice = particle_collision(logicCheck, path, lattice, stickyLattice, particleNumber)"
+250,100,10,particle_collision,58,249,13.3277,    stickyInitialTest = np.nonzero(lattice)
+250,100,11,particle_collision,68,249,13.1262,    latticeCheck = np.nonzero(lattice)
+250,100,12,main,145,249,12.9850,"                    latticeRadiusMax, radius, killRadius = lattice_radius_check(lattice, length, radius, killRadius)"
+250,100,13,lattice_radius_check,78,249,12.8433,    latticeRadiusInitial = np.nonzero(lattice)
+250,100,14,main,130,2352,3.9791,"            path = generate_path(steps, startingPosition)"
+250,100,15,main,184,229578,3.1618,"                correlationLattice[row] = lattice[int(referenceParticleRow+radiusCircle-row),int(referenceParticleColumn-radiusCircle):int(referenceParticleColumn+radiusCircle+1)]"
+250,100,16,particle_collision,63,125496,2.4517,"            stickySitesTest.append((stickyInitialTest[0][o], stickyInitialTest[1][o]) + movements[n])"
+250,100,17,generate_path,47,232848,1.9181,        path[n+1] = particlePosition + movements[direction[n]]
+250,100,18,main,135,221233,1.5394,"                    logicCheck[n] = stickyLattice[int(path[n,0]), int(path[n,1])] == 1"
+250,100,19,main,187,2490,1.4413,            coordsToCheck = np.where(circleSelection == True)
+250,100,20,main,201,505126,0.9591,                    filled += 1
+250,1000,1,main,190,22424442,87.3365,"                coords[n,0], coords[n,1] =  coordsToCheck[0][n], coordsToCheck[1][n]"
+250,1000,2,main,195,22424442,70.4540,"                row = int(coords[n,0])"
+250,1000,3,main,196,22424442,70.2580,"                column = int(coords[n,1])"
+250,1000,4,main,198,22424442,58.2115,                if check == 0:
+250,1000,5,main,197,22424442,53.9282,"                check = correlationLattice[row, column]"
+250,1000,6,main,199,21913307,48.5399,                    empty += 1
+250,1000,7,main,194,22426932,37.5336,            for n in range(len(coords)):
+250,1000,8,main,189,22426932,35.6000,            for n in range(len(coordsToCheck[0])):
+250,1000,9,main,144,249,27.5095,"                    lattice, stickyLattice = particle_collision(logicCheck, path, lattice, stickyLattice, particleNumber)"
+250,1000,10,particle_collision,58,249,11.8462,    stickyInitialTest = np.nonzero(lattice)
+250,1000,11,particle_collision,68,249,11.7019,    latticeCheck = np.nonzero(lattice)
+250,1000,12,main,145,249,11.5178,"                    latticeRadiusMax, radius, killRadius = lattice_radius_check(lattice, length, radius, killRadius)"
+250,1000,13,lattice_radius_check,78,249,11.4143,    latticeRadiusInitial = np.nonzero(lattice)
+250,1000,14,main,130,482,7.3872,"            path = generate_path(steps, startingPosition)"
+250,1000,15,generate_path,47,481518,3.9491,        path[n+1] = particlePosition + movements[direction[n]]
+250,1000,16,main,184,229578,3.1372,"                correlationLattice[row] = lattice[int(referenceParticleRow+radiusCircle-row),int(referenceParticleColumn-radiusCircle):int(referenceParticleColumn+radiusCircle+1)]"
+250,1000,17,particle_collision,63,125496,2.3331,"            stickySitesTest.append((stickyInitialTest[0][o], stickyInitialTest[1][o]) + movements[n])"
+250,1000,18,main,135,291013,1.9748,"                    logicCheck[n] = stickyLattice[int(path[n,0]), int(path[n,1])] == 1"
+250,1000,19,main,187,2490,1.4731,            coordsToCheck = np.where(circleSelection == True)
+250,1000,20,generate_path,48,481518,1.0302,        particlePosition = path[n+1]
+500,100,1,main,190,44938942,175.4661,"                coords[n,0], coords[n,1] =  coordsToCheck[0][n], coordsToCheck[1][n]"
+500,100,2,main,195,44938942,142.1818,"                row = int(coords[n,0])"
+500,100,3,main,196,44938942,140.3309,"                column = int(coords[n,1])"
+500,100,4,main,198,44938942,118.2191,                if check == 0:
+500,100,5,main,197,44938942,108.9174,"                check = correlationLattice[row, column]"
+500,100,6,main,199,43138007,96.4185,                    empty += 1
+500,100,7,main,194,44943932,75.8178,            for n in range(len(coords)):
+500,100,8,main,189,44943932,71.3223,            for n in range(len(coordsToCheck[0])):
+500,100,9,main,144,499,68.9711,"                    lattice, stickyLattice = particle_collision(logicCheck, path, lattice, stickyLattice, particleNumber)"
+500,100,10,particle_collision,58,499,26.1423,    stickyInitialTest = np.nonzero(lattice)
+500,100,11,particle_collision,68,499,25.8966,    latticeCheck = np.nonzero(lattice)
+500,100,12,main,145,499,25.3189,"                    latticeRadiusMax, radius, killRadius = lattice_radius_check(lattice, length, radius, killRadius)"
+500,100,13,lattice_radius_check,78,499,25.0224,    latticeRadiusInitial = np.nonzero(lattice)
+500,100,14,main,130,10173,16.8479,"            path = generate_path(steps, startingPosition)"
+500,100,15,particle_collision,63,500996,10.5140,"            stickySitesTest.append((stickyInitialTest[0][o], stickyInitialTest[1][o]) + movements[n])"
+500,100,16,generate_path,47,1007127,8.2308,        path[n+1] = particlePosition + movements[direction[n]]
+500,100,17,main,135,991894,6.8427,"                    logicCheck[n] = stickyLattice[int(path[n,0]), int(path[n,1])] == 1"
+500,100,18,main,184,460078,6.2322,"                correlationLattice[row] = lattice[int(referenceParticleRow+radiusCircle-row),int(referenceParticleColumn-radiusCircle):int(referenceParticleColumn+radiusCircle+1)]"
+500,100,19,main,201,1800935,3.3140,                    filled += 1
+500,100,20,main,141,991894,2.5944,                if logicCheck[n] == 1:
+500,1000,1,main,190,44938942,174.7103,"                coords[n,0], coords[n,1] =  coordsToCheck[0][n], coordsToCheck[1][n]"
+500,1000,2,main,195,44938942,142.1587,"                row = int(coords[n,0])"
+500,1000,3,main,196,44938942,141.3386,"                column = int(coords[n,1])"
+500,1000,4,main,198,44938942,117.1099,                if check == 0:
+500,1000,5,main,197,44938942,109.1397,"                check = correlationLattice[row, column]"
+500,1000,6,main,199,43066366,96.7554,                    empty += 1
+500,1000,7,main,194,44943932,75.2835,            for n in range(len(coords)):
+500,1000,8,main,189,44943932,72.2760,            for n in range(len(coordsToCheck[0])):
+500,1000,9,main,144,499,62.5363,"                    lattice, stickyLattice = particle_collision(logicCheck, path, lattice, stickyLattice, particleNumber)"
+500,1000,10,particle_collision,58,499,24.5426,    stickyInitialTest = np.nonzero(lattice)
+500,1000,11,particle_collision,68,499,24.1785,    latticeCheck = np.nonzero(lattice)
+500,1000,12,main,145,499,23.9120,"                    latticeRadiusMax, radius, killRadius = lattice_radius_check(lattice, length, radius, killRadius)"
+500,1000,13,lattice_radius_check,78,499,23.6516,    latticeRadiusInitial = np.nonzero(lattice)
+500,1000,14,main,130,928,14.4381,"            path = generate_path(steps, startingPosition)"
+500,1000,15,generate_path,47,927072,7.7107,        path[n+1] = particlePosition + movements[direction[n]]
+500,1000,16,particle_collision,63,500996,7.5413,"            stickySitesTest.append((stickyInitialTest[0][o], stickyInitialTest[1][o]) + movements[n])"
+500,1000,17,main,184,460078,6.3788,"                correlationLattice[row] = lattice[int(referenceParticleRow+radiusCircle-row),int(referenceParticleColumn-radiusCircle):int(referenceParticleColumn+radiusCircle+1)]"
+500,1000,18,main,135,566814,3.9618,"                    logicCheck[n] = stickyLattice[int(path[n,0]), int(path[n,1])] == 1"
+500,1000,19,main,201,1872576,3.4839,                    filled += 1
+500,1000,20,main,187,4990,2.2337,            coordsToCheck = np.where(circleSelection == True)
+750,100,1,main,190,67453442,271.7314,"                coords[n,0], coords[n,1] =  coordsToCheck[0][n], coordsToCheck[1][n]"
+750,100,2,main,195,67453442,220.4736,"                row = int(coords[n,0])"
+750,100,3,main,196,67453442,216.7300,"                column = int(coords[n,1])"
+750,100,4,main,198,67453442,181.3692,                if check == 0:
+750,100,5,main,197,67453442,167.9436,"                check = correlationLattice[row, column]"
+750,100,6,main,199,63757076,148.7763,                    empty += 1
+750,100,7,main,194,67460932,119.1911,            for n in range(len(coords)):
+750,100,8,main,189,67460932,111.2504,            for n in range(len(coordsToCheck[0])):
+750,100,9,main,144,749,108.2464,"                    lattice, stickyLattice = particle_collision(logicCheck, path, lattice, stickyLattice, particleNumber)"
+750,100,10,particle_collision,58,749,38.8264,    stickyInitialTest = np.nonzero(lattice)
+750,100,11,particle_collision,68,749,38.3123,    latticeCheck = np.nonzero(lattice)
+750,100,12,main,145,749,38.1897,"                    latticeRadiusMax, radius, killRadius = lattice_radius_check(lattice, length, radius, killRadius)"
+750,100,13,lattice_radius_check,78,749,37.7322,    latticeRadiusInitial = np.nonzero(lattice)
+750,100,14,main,130,10681,17.8540,"            path = generate_path(steps, startingPosition)"
+750,100,15,particle_collision,63,1126496,16.9424,"            stickySitesTest.append((stickyInitialTest[0][o], stickyInitialTest[1][o]) + movements[n])"
+750,100,16,main,184,690578,9.8713,"                correlationLattice[row] = lattice[int(referenceParticleRow+radiusCircle-row),int(referenceParticleColumn-radiusCircle):int(referenceParticleColumn+radiusCircle+1)]"
+750,100,17,generate_path,47,1057419,8.7210,        path[n+1] = particlePosition + movements[direction[n]]
+750,100,18,main,201,3696366,7.2042,                    filled += 1
+750,100,19,main,135,1030327,7.1106,"                    logicCheck[n] = stickyLattice[int(path[n,0]), int(path[n,1])] == 1"
+750,100,20,main,187,7490,4.0319,            coordsToCheck = np.where(circleSelection == True)
+750,1000,1,main,190,67453442,277.7253,"                coords[n,0], coords[n,1] =  coordsToCheck[0][n], coordsToCheck[1][n]"
+750,1000,2,main,195,67453442,220.9743,"                row = int(coords[n,0])"
+750,1000,3,main,196,67453442,212.6904,"                column = int(coords[n,1])"
+750,1000,4,main,198,67453442,184.8046,                if check == 0:
+750,1000,5,main,197,67453442,172.6599,"                check = correlationLattice[row, column]"
+750,1000,6,main,199,63680856,147.0787,                    empty += 1
+750,1000,7,main,194,67460932,118.2259,            for n in range(len(coords)):
+750,1000,8,main,189,67460932,110.6717,            for n in range(len(coordsToCheck[0])):
+750,1000,9,main,144,749,100.9406,"                    lattice, stickyLattice = particle_collision(logicCheck, path, lattice, stickyLattice, particleNumber)"
+750,1000,10,particle_collision,58,749,34.5517,    stickyInitialTest = np.nonzero(lattice)
+750,1000,11,main,145,749,34.4713,"                    latticeRadiusMax, radius, killRadius = lattice_radius_check(lattice, length, radius, killRadius)"
+750,1000,12,particle_collision,68,749,34.2371,    latticeCheck = np.nonzero(lattice)
+750,1000,13,lattice_radius_check,78,749,34.1619,    latticeRadiusInitial = np.nonzero(lattice)
+750,1000,14,main,130,2010,32.3080,"            path = generate_path(steps, startingPosition)"
+750,1000,15,particle_collision,63,1126496,17.5911,"            stickySitesTest.append((stickyInitialTest[0][o], stickyInitialTest[1][o]) + movements[n])"
+750,1000,16,generate_path,47,2007990,17.2274,        path[n+1] = particlePosition + movements[direction[n]]
+750,1000,17,main,135,1519850,10.9524,"                    logicCheck[n] = stickyLattice[int(path[n,0]), int(path[n,1])] == 1"
+750,1000,18,main,184,690578,9.5561,"                correlationLattice[row] = lattice[int(referenceParticleRow+radiusCircle-row),int(referenceParticleColumn-radiusCircle):int(referenceParticleColumn+radiusCircle+1)]"
+750,1000,19,main,201,3772586,7.2708,                    filled += 1
+750,1000,20,main,187,7490,4.6071,            coordsToCheck = np.where(circleSelection == True)
+1000,100,1,main,190,89967942,364.6263,"                coords[n,0], coords[n,1] =  coordsToCheck[0][n], coordsToCheck[1][n]"
+1000,100,2,main,195,89967942,294.7511,"                row = int(coords[n,0])"
+1000,100,3,main,196,89967942,289.1106,"                column = int(coords[n,1])"
+1000,100,4,main,198,89967942,248.3220,                if check == 0:
+1000,100,5,main,197,89967942,217.4637,"                check = correlationLattice[row, column]"
+1000,100,6,main,199,83792370,195.4727,                    empty += 1
+1000,100,7,main,194,89977932,156.8818,            for n in range(len(coords)):
+1000,100,8,main,189,89977932,150.7343,            for n in range(len(coordsToCheck[0])):
+1000,100,9,main,144,999,148.4963,"                    lattice, stickyLattice = particle_collision(logicCheck, path, lattice, stickyLattice, particleNumber)"
+1000,100,10,particle_collision,58,999,46.1311,    stickyInitialTest = np.nonzero(lattice)
+1000,100,11,main,145,999,46.0744,"                    latticeRadiusMax, radius, killRadius = lattice_radius_check(lattice, length, radius, killRadius)"
+1000,100,12,particle_collision,68,999,45.6048,    latticeCheck = np.nonzero(lattice)
+1000,100,13,lattice_radius_check,78,999,45.5943,    latticeRadiusInitial = np.nonzero(lattice)
+1000,100,14,particle_collision,63,2001996,30.9940,"            stickySitesTest.append((stickyInitialTest[0][o], stickyInitialTest[1][o]) + movements[n])"
+1000,100,15,main,130,17070,29.2097,"            path = generate_path(steps, startingPosition)"
+1000,100,16,generate_path,47,1689930,14.3552,        path[n+1] = particlePosition + movements[direction[n]]
+1000,100,17,main,184,921078,12.7100,"                correlationLattice[row] = lattice[int(referenceParticleRow+radiusCircle-row),int(referenceParticleColumn-radiusCircle):int(referenceParticleColumn+radiusCircle+1)]"
+1000,100,18,main,201,6175572,11.9576,                    filled += 1
+1000,100,19,main,135,1656467,11.8779,"                    logicCheck[n] = stickyLattice[int(path[n,0]), int(path[n,1])] == 1"
+1000,100,20,particle_collision,65,2001996,6.3725,"        stickyLattice[stickySitesTest[n][0], stickySitesTest[n][1]] = 1"
+1000,1000,1,main,190,89967942,362.1779,"                coords[n,0], coords[n,1] =  coordsToCheck[0][n], coordsToCheck[1][n]"
+1000,1000,2,main,195,89967942,287.7451,"                row = int(coords[n,0])"
+1000,1000,3,main,196,89967942,284.9139,"                column = int(coords[n,1])"
+1000,1000,4,main,198,89967942,233.8211,                if check == 0:
+1000,1000,5,main,197,89967942,223.5224,"                check = correlationLattice[row, column]"
+1000,1000,6,main,199,83827218,193.9883,                    empty += 1
+1000,1000,7,main,194,89977932,156.3471,            for n in range(len(coords)):
+1000,1000,8,main,144,999,150.0394,"                    lattice, stickyLattice = particle_collision(logicCheck, path, lattice, stickyLattice, particleNumber)"
+1000,1000,9,main,189,89977932,145.7198,            for n in range(len(coordsToCheck[0])):
+1000,1000,10,main,130,4768,77.0506,"            path = generate_path(steps, startingPosition)"
+1000,1000,11,particle_collision,58,999,45.6060,    stickyInitialTest = np.nonzero(lattice)
+1000,1000,12,particle_collision,68,999,45.0208,    latticeCheck = np.nonzero(lattice)
+1000,1000,13,main,145,999,44.7794,"                    latticeRadiusMax, radius, killRadius = lattice_radius_check(lattice, length, radius, killRadius)"
+1000,1000,14,lattice_radius_check,78,999,44.3248,    latticeRadiusInitial = np.nonzero(lattice)
+1000,1000,15,generate_path,47,4763232,40.9740,        path[n+1] = particlePosition + movements[direction[n]]
+1000,1000,16,particle_collision,63,2001996,33.3320,"            stickySitesTest.append((stickyInitialTest[0][o], stickyInitialTest[1][o]) + movements[n])"
+1000,1000,17,main,135,4191170,29.8931,"                    logicCheck[n] = stickyLattice[int(path[n,0]), int(path[n,1])] == 1"
+1000,1000,18,main,184,921078,12.4429,"                correlationLattice[row] = lattice[int(referenceParticleRow+radiusCircle-row),int(referenceParticleColumn-radiusCircle):int(referenceParticleColumn+radiusCircle+1)]"
+1000,1000,19,main,141,4191170,11.4483,                if logicCheck[n] == 1:
+1000,1000,20,main,201,6140724,10.8764,                    filled += 1
