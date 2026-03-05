@@ -53,10 +53,7 @@ We used two profiling approaches, setting `particleCap` over {25, 50, 100, 250, 
 
 The radial density computation takes 72–77% of total runtime, while the aggregation takes 23–28%.
 
-
-
 <image src="./profile_code/timer_proportions.png">
-
 
 Both two parts grow roughly linearly with `particleCap`, but not perfectly. The complexity of radial density computation part is linear because it iterates over all particles with fixed per-particle work. The aggregation art grows slightly faster than linear: as the cluster grows, the generation radius increases, particles must walk longer distances to reach the cluster, and the `particle_collision` function scans more occupied sites per call (O(N) per particle, O(N^2) cumulative). This explains why the aggregation percentage rises slightly from ~23% to ~28% as `particleCap` increases.
 
@@ -97,14 +94,40 @@ These 8 lines account for 44.7s out of 49.9s (89.6%) of the radial density secti
 
 **Top hotspot lines — particle aggregation:**
 
-| Rank | Line | Hits   | Time (s) | Code |
-|------|------|--------|----------|------|
-| 9    | 144  | 24     | 2.16     | `particle_collision(...)` call |
-| 10   | 58   | 24     | 1.07     | `np.nonzero(lattice)` in `particle_collision` |
-| 11   | 68   | 24     | 1.05     | `np.nonzero(lattice)` in `particle_collision` (2nd call) |
-| 13   | 78   | 24     | 1.05     | `np.nonzero(lattice)` in `lattice_radius_check` |
-| 14   | 130  | 345    | 0.56     | `generate_path(...)` call |
-| 17   | 135  | 33,518 | 0.23     | Collision check: `stickyLattice[int(path[n,0]), ...]` |
+| Rank | Function | Line | Hits | Time (s) | Code |
+|------|----------|------|------|----------|------|
+| 9  | `main`              | 144 | 24     | 2.16 | `particle_collision(...)` call |
+| 10 | `particle_collision`| 58  | 24     | 1.07 | `np.nonzero(lattice)` |
+| 11 | `main`              | 145 | 24     | 1.05 | `lattice_radius_check(...)` call |
+| 12 | `particle_collision`| 68  | 24     | 1.05 | `np.nonzero(lattice)` (2nd call) |
+| 13 | `lattice_radius_check` | 78 | 24 | 1.05 | `lattice_radius_check` call |
+| 14 | `main`              | 130 | 345    | 0.56 | `generate_path(...)` call |
+| 15 | `main`              | 184 | 22,128 | 0.31 | `correlationLattice[row] = lattice[...]` |
+| 16 | `generate_path`     | 47  | 34,155 | 0.28 | `path[n+1] = particlePosition + movements[direction[n]]` |
+| 17 | `main`              | 135 | 33,518 | 0.23 | `stickyLattice[int(path[n,0]), ...]` collision check |
+| 20 | `main`              | 141 | 33,518 | 0.09 | `if logicCheck[n] == 1:` |
 
-The dominant cost in aggregation is `particle_collision`, which calls `np.nonzero` on the full 1251 x 1251 lattice three times per particle (twice in `particle_collision`, once in `lattice_radius_check`).
+Apart from the radial density calculation, the most expensive component is **particle collision** (`particle_collision` + `lattice_radius_check`). Notably, these functions are called only 24 times (once per deposited particle), yet they accumulate over 4 s combined. This means the cost is not from `line_profiler` but from the real computation: three calls `np.nonzero` on the full 1251 × 1251 lattice for a particle, twice inside `particle_collision` (lines 58, 68) and once inside `lattice_radius_check` (line 78), causing over 1.5 million lattice visits.
+
+A secondary but important bottleneck lies in the **path generation** and **collision detection** loops, both of which use trivial Python-level `for` loops with no vectorization:
+
+```python
+# generate_path (line 47): one step at a time
+for n in range(steps - 1):
+    path[n+1] = particlePosition + movements[direction[n]]
+
+# collision check (line 135): one element at a time
+for n in range(steps):
+    try:
+        logicCheck[n] = stickyLattice[int(path[n,0]), int(path[n,1])] == 1
+    except IndexError:
+        continue
+    ...
+    if logicChech[n] == 1:
+    ...
+```
+
+Both loops perform individual Python array accesses instead of single vectorized NumPy operations. Moreover, the collision check additionally wraps every access in a `try/except IndexError` block, adding exception-handling overhead to this heavy inner loop. It generates 33,518 hits on line 135 even in this small 25-particle run.
+
+## Optimization Methodology
 
