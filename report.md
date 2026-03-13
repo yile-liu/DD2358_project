@@ -379,7 +379,7 @@ Python interpreter dispatch on every element.
 ---
 
 ### Pybind11 Optimization
-We decided to integrate pybind11 in order to make the code faster. We failed. We managed to get the second for loop (the one that analyses the density), and translate it into CPP. This approach is pretty nice, as we can reason about the places in memory that we should be putting every data type. While operations on vectors cannot be beat easily by numpy (as a programmer will not do those optimizations than 10 expert HPC programmers that wrote numpy), complex operations on vectors, dividing them in multiple segments, doing strange operations, having multiple if statements based on indexes. These operations might be better done in CPP than in python in order to analyze the code and be able to reason if the results are not expected. At the same time, pybind11 has the posibility of being paralelized on GPU using CUDA.
+We decided to integrate pybind11 in order to make the code faster. We failed. We managed to get the second for loop (the one that analyses the density), and translate it into CPP. This approach is pretty nice, as we can reason about the places in memory that we should be putting every data type. While operations on vectors cannot be beat easily by numpy (as a programmer will not do those optimizations than 10 expert HPC programmers that wrote numpy), complex operations on vectors, dividing them in multiple segments, doing strange operations, having multiple if statements based on indexes. These operations might be better done in CPP than in python in order to analyze the code and be able to reason if the results are not expected. At the same time, pybind11 has the posibility of being paralelized on GPU using CUDA. To mention, this optimization was done for the density computing, hence when we compared the results in time, the results were strictly for that function, and now the whole code. The code that compares is in 'optimized_code/DLA2DAggregate_compare_pybind'. It only imports the library and runs.
 
 A small snippet of some pybind11 code:
 
@@ -426,6 +426,32 @@ and as we can see
 ![htop](profile_code/htop_multiproc.png)
 
 The cores are working overtime in order to do the computation. And we see the 10 "cores" working.
+
+### GPU optimization
+As a last optimization that we decided to test, was using the GPU's. We decided to replace the numpy library in multiple instances with the cupy library, so that we do the operations on the gpu. Due to the iterative nature of the code (we are taking particles one at a time and trying to send them to the lattice), only a fraction of the logic could be pararelized. We thought of a solution (of creating multiple particles, sending them all at one to the lattice and having them modify the values in the grid once they hit), but we didn't manage to finish in time as the code was complex. Most of the optimizations constituted of getting vectors, and doing all their operations on gpu's, and the second that they enterred a cpu part (something that had to be done iterativelly), get just translaed it back to the CPU using the default operations (.get()).This means that we had a very big overhead translating from the GPU to the CPU. The biggest operation was moving the path generation to the gpu.
+
+``` py
+def generate_path_gpu(steps, startingPosition):
+    direction = cp.random.randint(0, 4, steps - 1)
+    stepVectors = movements_cp[direction]
+    start= cp.array(startingPosition)
+    path= cp.empty((steps, 2))
+    path[0]= start
+    path[1:]= start + cp.cumsum(stepVectors, axis=0)
+    return path
+```
+
+Over here, generating random numbers, and then aggregating the values in the path is a heavy operation. It can be moved to the gpu. Afterwards, we can check the colitsion with the lattice (which is also located i nthe gpu), in order to find the first location it hit. This is the whole workflow for the gpu operations, computing the path and finding the first place that it intersects the lattice.
+
+``` py
+logicCheck= cp.zeros(steps, dtype=bool)
+logicCheck[valid]= (stickyLattice[safeRows[valid], safeCols[valid]] == 1)
+
+hitIndices = cp.nonzero(logicCheck)[0]
+```
+
+And afterwards, we have to translate the indice back to the cpu to be used to add the particle to the fractal.
+
 
 ## Performance Results (Baseline vs v1 vs v2)
 
@@ -544,6 +570,17 @@ We have around 5 times faster code. For an embarasingly parrallel problem, while
 After second simulation:
 Around 6-7 times faster. Expectable on a machine where you have mnultiple processes doing jobs in each cpu. The other processes are not computationally expensive, but even the simple act of switching context is too heavy.
 
+### GPU Optimization
+The gpu optimization was disappointing
+
+(On a first run where the CPU dominated the GPU optimization)
+As we can see, although the operations for generating the path were paralelized on the gpu, they are still faster on the CPU. That would mean that the overhead of sending the gpu data back to the cpu is too big, or we are doing these type of operations too often. Another important aspect is the number of steps that we are doing. We tested using 100 and 1000 steps, in order to force the GPU to use all it's cores. For the 100 steps iterations, it is expectable to have a bad result, as the cpu can through vectorization process 4 items at once, and it might be 25 times faster than the GPU (a CPU core vs a GPU core).
+
+![gpu optimization](optimized_code/benchmark_v3_speedup.png)
+
+On a second run, we get rather good results. The path being very big meant that all the GPU cores could work
+
+
 ## Critical Reflection
 
 **v1's speedup of 44–68× is larger than the ~1.5× predicted from Amdahl's
@@ -567,3 +604,10 @@ new dimension of improvement such as parallelism, which is left to Student 3.
 baseline, v1, and v2 alike. The segmentation granularity of the random walk
 has no meaningful effect on total computation regardless of which optimizations
 are applied.
+
+**Shouldn't use gpu for small parts of the code**: Using GPU to send data back and forth kills all the performance. Even though an operation can be pararelized on tousands of cores, if we are making it and sending the result tousands of times, we will loose performance. But if the vectors that we are doing the operations are very large, gpu could take the lead (just have every core not waste time)
+
+## AI Usage
+1. AI was used for the pybind11 optimization in order to detect if there were any logic bugs. It helped me understand the fact that I was wrapping around the grid when checking the radius, which was bad logic.
+2. Clause was also used to understand some bugs and the workflow for the GPU optimization. I was missing some points where the data had to be translated back to the CPU to be used by numpy.
+3. The benchmark v3 was done with the help of GPT. It is only doing plotting, calling subprocesses for the 3 version of the code and passing variables, aggregating the results and plotting. Although it could have been done completelly by hand, a simple matplotlib mistake would mean hours of debugging. It was verified by looking and the code and result
