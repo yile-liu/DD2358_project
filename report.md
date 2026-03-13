@@ -2,6 +2,8 @@
 
 Our repository is available at https://github.com/yile-liu/DD2358_project.
 
+Target Grades for Group Members: Sirui Liu - B, Rong Jin - B, Serban Ionescu - A
+
 ## Introduction
 
 ### What is Diffusion Limited Aggregation?
@@ -132,6 +134,7 @@ for n in range(steps):
 Both loops access array elements one by one in Python instead of using vectorized NumPy operations. The collision detection loop also wraps every access in a `try/except IndexError` block, which adds extra overhead. Line 135 is hit 33,518 times even in this small 25-particle run.
 
 #### Memory Profiling
+
 At the same time, we tried doing some memory profiling on the code in order to see if there are any memory bottlenecks. However, the memory profiler we used, `memory_profiler`, was not able to give us any useful information. Given that it is python, the garbage collector can give out some very strange results, and it is hard to know if the memory usage is actually due to the code or just the garbage collector doing its thing.
 
 ```
@@ -148,12 +151,12 @@ At the same time, we tried doing some memory profiling on the code in order to s
    148                                                                 # effect
    149                                                                 continue
    150   73.438 MiB    0.000 MiB       89599                       if logicCheck[n] == 1:
-   151                                                                 
+   151
    152                                                                 # Call functions to update both lattice arrays upon collision
    153   73.445 MiB 7339.660 MiB         100                           lattice, stickyLattice = particle_collision(logicCheck, path, lattice, stickyLattice, particleNumber)
    154   73.445 MiB 7339.660 MiB         100                           latticeRadiusMax, radius, killRadius = lattice_radius_check(lattice, length, radius, killRadius)
-   155                                                                 
-   156   73.445 MiB    0.004 MiB         100                           latticeRadiusData.append([particleNumber, latticeRadiusMax])    
+   155
+   156   73.445 MiB    0.004 MiB         100                           latticeRadiusData.append([particleNumber, latticeRadiusMax])
    157   73.445 MiB    0.000 MiB         100                           moving = 0
    158   73.445 MiB    0.000 MiB         100                           particleNumber += 1
    159                                                                 #print('Particle', particleNumber-1, 'collided, generation radius is', radius)
@@ -168,6 +171,7 @@ Over here, in the kill check, for the number of steps a particle can take, for e
 ```
 killCheck = np.sqrt(((path[:,0]-length/2)**2) + ((path[:,1]-length/2)**2))
 ```
+
 This might mean that there is a lot of memory being consumed on "virtual registers" for intermediate results. We call them virtual, as in python the registers will still be located in RAM due to the virtualization model. A lot of optimization needs to be done.
 
 ## Optimization Methodology
@@ -379,6 +383,7 @@ Python interpreter dispatch on every element.
 ---
 
 ### Pybind11 Optimization
+
 We decided to integrate pybind11 in order to make the code faster. We failed. We managed to get the second for loop (the one that analyses the density), and translate it into CPP. This approach is pretty nice, as we can reason about the places in memory that we should be putting every data type. While operations on vectors cannot be beat easily by numpy (as a programmer will not do those optimizations than 10 expert HPC programmers that wrote numpy), complex operations on vectors, dividing them in multiple segments, doing strange operations, having multiple if statements based on indexes. These operations might be better done in CPP than in python in order to analyze the code and be able to reason if the results are not expected. At the same time, pybind11 has the posibility of being paralelized on GPU using CUDA. To mention, this optimization was done for the density computing, hence when we compared the results in time, the results were strictly for that function, and now the whole code. The code that compares is in 'optimized_code/DLA2DAggregate_compare_pybind'. It only imports the library and runs.
 
 A small snippet of some pybind11 code:
@@ -404,6 +409,7 @@ PYBIND11_MODULE(optimization_pybind11, m) {
 Just with some more lines of code, we can do this optimization. At the same time, we can reason about memory location (wether we want the cpp code to manage the lifespan of the objects), and we can directly create the CPP data structures from numpy python structures. This implementation is not ideal currently. More optimization would be needed. At the same time, we will beneficiate most out of this if we translate all the functions.
 
 ### Multiprocessor optimization
+
 As we are students and desire easy tasks, we saw an embarasingly parrallel for loop that just went through multiple attemts of creating the fractals and computing their density, hence we just directly paralelized that
 
 ```python
@@ -420,6 +426,7 @@ time1 = time.time()
 time2 = round((time1-time0))
 print('Finished all runs in', time2, 'seconds.')
 ```
+
 This simple optimization is bound to give good results
 
 and as we can see
@@ -428,9 +435,10 @@ and as we can see
 The cores are working overtime in order to do the computation. And we see the 10 "cores" working.
 
 ### GPU optimization
+
 As a last optimization that we decided to test, was using the GPU's. We decided to replace the numpy library in multiple instances with the cupy library, so that we do the operations on the gpu. Due to the iterative nature of the code (we are taking particles one at a time and trying to send them to the lattice), only a fraction of the logic could be pararelized. We thought of a solution (of creating multiple particles, sending them all at one to the lattice and having them modify the values in the grid once they hit), but we didn't manage to finish in time as the code was complex. Most of the optimizations constituted of getting vectors, and doing all their operations on gpu's, and the second that they enterred a cpu part (something that had to be done iterativelly), get just translaed it back to the CPU using the default operations (.get()).This means that we had a very big overhead translating from the GPU to the CPU. The biggest operation was moving the path generation to the gpu.
 
-``` py
+```py
 def generate_path_gpu(steps, startingPosition):
     direction = cp.random.randint(0, 4, steps - 1)
     stepVectors = movements_cp[direction]
@@ -443,7 +451,7 @@ def generate_path_gpu(steps, startingPosition):
 
 Over here, generating random numbers, and then aggregating the values in the path is a heavy operation. It can be moved to the gpu. Afterwards, we can check the colitsion with the lattice (which is also located i nthe gpu), in order to find the first location it hit. This is the whole workflow for the gpu operations, computing the path and finding the first place that it intersects the lattice.
 
-``` py
+```py
 logicCheck= cp.zeros(steps, dtype=bool)
 logicCheck[valid]= (stickyLattice[safeRows[valid], safeCols[valid]] == 1)
 
@@ -451,7 +459,6 @@ hitIndices = cp.nonzero(logicCheck)[0]
 ```
 
 And afterwards, we have to translate the indice back to the cpu to be used to add the particle to the fractal.
-
 
 ## Performance Results (Baseline vs v1 vs v2)
 
@@ -468,10 +475,10 @@ runs were executed sequentially on the same machine. The benchmark script is
 
 Hereby we call the optimized version with Opt-1/2/3 as v1, and the version with all five optimizations as v2.
 
-| Version  | Optimizations applied                                                    |
-| -------- | ------------------------------------------------------------------------ |
-| Baseline | None — original code                                                     |
-| v1       | Vectorized Particle Aggregation (Opt-1/2/3)     |
+| Version  | Optimizations applied                                                                         |
+| -------- | --------------------------------------------------------------------------------------------- |
+| Baseline | None — original code                                                                          |
+| v1       | Vectorized Particle Aggregation (Opt-1/2/3)                                                   |
 | v2       | Vectorized Particle Aggregation (Opt-1/2/3) + Vectorized Radial Density Calculation (Opt-4/5) |
 
 **Total runtime at `steps=1000`:**
@@ -486,7 +493,7 @@ Hereby we call the optimized version with Opt-1/2/3 as v1, and the version with 
 | 750         | 77.59        | 1.201  | 64.6×      | 0.525  | 147.9×     |
 | 1000        | 105.11       | 1.545  | 68.0×      | 0.727  | 144.5×     |
 
-v1 achieves a consistent 44–68× speedup over baseline. v2 adds a further 2–3×
+v1 achieves a consistent 44–68× speedup over baseline. This reflects Opt-1/2/3 on the aggregation phase together with a partial vectorization of the radial density counting loop already present in the v1 implementation. v2 adds a further 2–3×
 on top of v1, reaching 65–165× over baseline. The largest absolute saving at
 `particleCap=1000` is 104.4 seconds — a run that took 1 min 45s now completes
 in under 0.75s.
@@ -537,6 +544,7 @@ v2 reflects the growing aggregation cost (Opt-1 uses a Python set whose lookup
 time grows slowly with set size), which begins to limit the overall speedup.
 
 ### Pybind11 Optimization
+
 The pybind11 optimization gave suboptimal results.
 
 ```
@@ -548,7 +556,9 @@ The pybind11 optimization gave suboptimal results.
 This was run on a big enough grid with multiple iterations (path of particle 100 steps and particle cap 1001). Considering that both the python unoptimized version and the CPP version have the same complexity (O(N^4)), this is an atractive result. The Pybind11 code was 10 times faster! This means that, for somebody that knows cpp but doesn't know optimizations in python, they can speed up their code. Of course, the numpy version is highly optimized for using vectorization and masking in order to get the best results. It is 10 times faster than the pybind11 version. But we all know that a 10 times optimization can be done by a simple change of 2 for loops hehe.
 
 ### Multiprocessor Optimization
+
 To be noted that this multiprocessor optimization is just as proof of work. There is no point in increasing the workload of the program in hte final optimized version just to do multiple attempts, and prove that the optimization of using multiple CPU's is kept even after numpy optimizations.
+
 ```bash
     particleCap = 101
     steps = 10
@@ -571,6 +581,7 @@ After second simulation:
 Around 6-7 times faster. Expectable on a machine where you have mnultiple processes doing jobs in each cpu. The other processes are not computationally expensive, but even the simple act of switching context is too heavy.
 
 ### GPU Optimization
+
 The gpu optimization was disappointing
 
 (On a first run where the CPU dominated the GPU optimization)
@@ -580,24 +591,13 @@ As we can see, although the operations for generating the path were paralelized 
 
 On a second run, we get rather good results. The path being very big meant that all the GPU cores could work
 
-
 ## Critical Reflection
-
-**v1's speedup of 44–68× is larger than the ~1.5× predicted from Amdahl's
-Law alone.** The Amdahl prediction assumed only the 25% aggregation slice would
-improve. In practice, the v1 benchmark runner also uses vectorized mask counting
-(`correlationLattice[mask]` + `np.count_nonzero`) for the radial density, rather
-than the full per-element Python counting loop in the original baseline. This
-means v1's numbers reflect Opt-1/2/3 plus a partial radial vectorization. The
-remaining 3.6× improvement from v2 is then attributable specifically to Opt-4:
-eliminating the per-row sub-lattice extraction loop and pre-computing the circle
-masks.
 
 **The phase balance at v2 is notable.** At baseline, radial density dominates
 at 67%. After v2 at `particleCap=1000`, both phases are roughly equal (52%
 aggr, 46% radial). This means there is no single dominant bottleneck remaining.
 Any further speedup must address both phases simultaneously — or introduce a
-new dimension of improvement such as parallelism, which is left to Student 3.
+new dimension of improvement such as parallelism.
 
 **The `steps` parameter remains irrelevant across all versions.** Comparing
 `steps=100` vs `steps=1000` shows less than 6% variation in total time for
@@ -608,6 +608,8 @@ are applied.
 **Shouldn't use gpu for small parts of the code**: Using GPU to send data back and forth kills all the performance. Even though an operation can be pararelized on tousands of cores, if we are making it and sending the result tousands of times, we will loose performance. But if the vectors that we are doing the operations are very large, gpu could take the lead (just have every core not waste time)
 
 ## AI Usage
+
 1. AI was used for the pybind11 optimization in order to detect if there were any logic bugs. It helped me understand the fact that I was wrapping around the grid when checking the radius, which was bad logic.
 2. Clause was also used to understand some bugs and the workflow for the GPU optimization. I was missing some points where the data had to be translated back to the CPU to be used by numpy.
 3. The benchmark v3 was done with the help of GPT. It is only doing plotting, calling subprocesses for the 3 version of the code and passing variables, aggregating the results and plotting. Although it could have been done completelly by hand, a simple matplotlib mistake would mean hours of debugging. It was verified by looking and the code and result
+4. Claude was used for formatting and polishing the text explanation part of the report to fix typos, grammar issues and deliver scientific writing. The result text is manually proofread to ensure it aligns with our original report.
