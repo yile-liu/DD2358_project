@@ -1,5 +1,7 @@
 # Performance Optimization of DLA-python
 
+Our repository is available at https://github.com/yile-liu/DD2358_project.
+
 ## Introduction
 
 ### What is Diffusion Limited Aggregation?
@@ -170,11 +172,11 @@ This might mean that there is a lot of memory being consumed on "virtual registe
 
 ## Optimization Methodology
 
-### Particle Aggregation
-
 Based on the profiling results, we found three main bottlenecks in the aggregation phase and applied a different optimization for each.
 
-#### Incremental Position Tracking
+### Vectorized Particle Aggregation
+
+#### Opt-1: Incremental Position Tracking
 
 In the original code, every time a particle is deposited, `particle_collision` calls `np.nonzero(lattice)` twice and `lattice_radius_check` calls it once more to find deposited particle and rebuild aggregation from scratch. Each `np.nonzero` goes through the whole 1251 × 1251 lattice to find occupied sites. For 25 particles, these three scans already take over 4 seconds combined.
 
@@ -231,7 +233,7 @@ def lattice_radius_check(occupiedPositions, length, radius, killRadius):
     return latticeRadiusMax, radius, killRadius
 ```
 
-#### Vectorized Path Generation
+#### Opt-2: Vectorized Path Generation
 
 The original `generate_path` builds the random walk path one step at a time in a Python `for` loop (34,155 iterations for just 25 particles). Since each step is an independent random direction, the whole path is just a cumulative sum of step vectors. We can replace the loop with a single `np.cumsum` call, which lets NumPy do the work in C instead of Python.
 
@@ -259,7 +261,7 @@ def generate_path(steps, startingPosition):
     path[1:] = startingPosition + np.cumsum(stepVectors, axis=0)  # one call
 ```
 
-#### Vectorized Collision Detection
+#### Opt-3: Vectorized Collision Detection
 
 The original collision detection checks each step one by one in a Python loop, and uses `try/except IndexError` for boundary handling. This loop runs 33,518 times even for 25 particles. Both the per-element access and the exception handling add overhead.
 
@@ -299,7 +301,7 @@ if len(hitIndices) > 0:
 
 The vectorized version checks all steps at once rather than stopping at the first hit. We then take `hitIndices[0]` to get the earliest collision, which gives the same result as the original `break`. The `np.nonzero` here works on a small 1000-element boolean array (path length), which is very different from the old full-lattice scans on a 1.56M-element array.
 
-### Radial Density Optimization (Optimizations 4–5)
+### Vectorized Radial Density Calculation
 
 The profiling results show that the radial density phase accounts for 72–77% of
 total runtime across all tested configurations, yet all three aggregation-phase
@@ -377,7 +379,7 @@ Python interpreter dispatch on every element.
 ---
 
 ### Pybind11 Optimization
-We decided to integrate pybind11 in order to make the code faster. We failed. We managed to get the second for loop (the one that analyses the density), and translate it into CPP. This approach is preety nice, as we can reason about the places in memory that we should be putting every data type. While operations on vectors cannot be beat easily by numpy (as a programmer will not do those optimizations than 10 expert HPC programmers that wrote numpy), complex operations on vectors, dividing them in multiple segments, doing strange operations, having multiple if statements based on indexes. These operations might be better done in CPP than in python in order to analyze the code and be able to reason if the results are not expected. At the same time, pybind11 has the posibility of being paralelized on GPU using CUDA.
+We decided to integrate pybind11 in order to make the code faster. We failed. We managed to get the second for loop (the one that analyses the density), and translate it into CPP. This approach is pretty nice, as we can reason about the places in memory that we should be putting every data type. While operations on vectors cannot be beat easily by numpy (as a programmer will not do those optimizations than 10 expert HPC programmers that wrote numpy), complex operations on vectors, dividing them in multiple segments, doing strange operations, having multiple if statements based on indexes. These operations might be better done in CPP than in python in order to analyze the code and be able to reason if the results are not expected. At the same time, pybind11 has the posibility of being paralelized on GPU using CUDA.
 
 A small snippet of some pybind11 code:
 
@@ -430,386 +432,21 @@ The cores are working overtime in order to do the computation. And we see the 10
 ### Benchmark Methodology
 
 We benchmarked three implementations across `particleCap ∈ {25, 50, 100, 250,
-500, 750, 1000}` and `steps ∈ {100, 1000}`. For each run we separately recorded
-aggregation time and radial density time using `time.time()` wrappers, matching
-the approach of the original timer profiler. All runs were executed sequentially
-on the same machine. The full benchmark script is `optimized_code/benchmark_v2.py`,
-which produces `benchmark_v2_results.csv` and three plots.
-
-| Version  | Optimizations applied                                                |
-| -------- | -------------------------------------------------------------------- |
-| Baseline | None — original code                                                 |
-| v1       | Opt-1 (incremental set), Opt-2 (cumsum path), Opt-3 (vec. collision) |
-| v2       | Opt-1 through Opt-5 (+ vectorized radial density)                    |
-
-### Aggregation Phase (v1)
-
-v1 eliminates the three full-lattice `np.nonzero` scans per deposited particle
-that dominated `particle_collision` and `lattice_radius_check`, replacing them
-with O(1) set operations. It also vectorizes path generation and collision
-detection. The expected speedup on the aggregation phase alone is 4–6×.
-
-However, since the aggregation phase is only ~25% of total runtime, v1's overall
-improvement is Amdahl-limited. At `particleCap=1000`, the aggregation phase
-accounts for ~22s of the 85s baseline; a 5× speedup of that slice saves roughly
-17s, yielding a total speedup of only ~1.25×. Measured v1 total speedup is
-therefore expected in the range of 1.2–1.5×.
-
-### Radial Density Phase (v2)
-
-v2 targets the 72–77% slice directly. Each of the 8 top hotspot lines identified
-by the line profiler is either eliminated or replaced by a NumPy call. The
-per-row sub-lattice loop becomes a single slice; the two counting loops become
-`sub[mask]` + `count_nonzero`. At `particleCap=1000` the radial density accounts
-for ~62s of the 85s baseline. Using a conservative 30× speedup estimate for the
-radial density, the projected total speedup is:
-
-```
-speedup_total ≈ 1 / (0.27 + 0.73 / 30) ≈ 18×
-```
-
-### Pybind11 Optimization
-The pybind11 optimization gave suboptimal results.
-
-```
-- Naive Python Loop:    67.9726 seconds
-- NumPy Vectorized:     0.2852 seconds
-- C++ (Pybind11):       4.3775 seconds
-```
-
-This was run on a big enough grid with multiple iterations (path of particle 100 steps and particle cap 1001). Considering that both the python unoptimized version and the CPP version have the same complexity (O(N^4)), this is an atractive result. The Pybind11 code was 10 times faster! This means that, for somebody that knows cpp but doesn't know optimizations in python, they can speed up their code. Of course, the numpy version is highly optimized for using vectorization and masking in order to get the best results. It is 10 times faster than the pybind11 version. But we all know that a 10 times optimization can be done by a simple change of 2 for loops hehe.
-
-### Multiprocessor Optimization
-To be noted that this multiprocessor optimization is just as proof of work. There is no point in increasing the workload of the program in hte final optimized version just to do multiple attempts, and prove that the optimization of using multiple CPU's is kept even after numpy optimizations.
-```bash
-    particleCap = 101
-    steps = 10
-    attempts = 10
-
-Finished all runs in 18 seconds.
-Finished serial runs in 94 seconds.
-
-    particleCap = 1001
-    steps = 100
-    attempts = 10
-Finished all runs in 181 seconds.
-Finished serial runs in 1013 seconds.
-```
-
-After first simulation:
-We have around 5 times faster code. For an embarasingly parrallel problem, while using 10 cpu's. Not ideal to say the least. Let's see what happens if we increase a little bit the dimension of the problem. In the end, we are on a machine that has 8 cores with hyperthreadding, we should definetelly have enough processing power to do other tasks while also running the simulation. Hence, having a spotify open, writting in vscode and browsing the web (or other idle tasks done by the user) should definetelly not interfere with the computation done by the cpu's.
-
-After second simulation:
-Around 6-7 times faster. Expectable on a machine where you have mnultiple processes doing jobs in each cpu. The other processes are not computationally expensive, but even the simple act of switching context is too heavy.
-
-### Results Table
-
-The table below reports timings at `steps=1000`. Rows marked with dashes are
-to be filled in after running `benchmark_v2.py` on the target machine; the
-baseline column is already known from the timer profiler results collected by
-Student 1.
-
-| particleCap | Baseline (s) | v1 (s) | v1 speedup | v2 (s) | v2 speedup |
-| ----------- | ------------ | ------ | ---------- | ------ | ---------- |
-| 25          | 1.65         | —      | —          | —      | —          |
-| 100         | 6.93         | —      | —          | —      | —          |
-| 250         | 16.72        | —      | —          | —      | —          |
-| 500         | 35.30        | —      | —          | —      | —          |
-| 1000        | 85.06        | —      | —          | —      | —          |
-
-_(Populate from `benchmark_v2_results.csv` after running the benchmark.)_
-
-### Phase Breakdown
-
-The `benchmark_v2_breakdown.png` stacked bar chart shows the aggregation and
-radial density contributions for each version. Two trends are expected to be
-clearly visible. For v1, the aggregation bar shrinks substantially but the
-radial bar is unchanged, confirming the Amdahl ceiling predicted above. For v2,
-the radial bar collapses by roughly an order of magnitude, and the two phases
-become comparable in cost for the first time. The `steps` parameter continues to
-have negligible effect across all three versions, consistent with Student 1's
-observation that it controls walk segmentation granularity rather than total work.
-
-### Critical Reflection
-
-**Amdahl's Law is the central lesson of v1.** Student 1's three optimizations
-are technically sound — they eliminate genuinely wasteful operations — but the
-profiling data already predicted the modest overall gain. This illustrates why
-profiling-guided prioritization matters: without the timer split, one could
-spend significant effort on the aggregation phase while leaving the dominant
-bottleneck untouched.
-
-**Vectorization is more impactful than algorithmic change here.** The core
-structure of the radial density phase is not changed by Opt-4/5 — it still
-iterates over every particle and every radius, still extracts a sub-lattice and
-applies a circular mask. What changes is whether that work is done in Python or
-in NumPy's C backend. The speedup comes entirely from eliminating Python
-interpreter overhead on millions of trivial operations, not from reducing
-asymptotic complexity. This is a common pattern in scientific Python: the
-bottleneck is often the language layer, not the algorithm.
-
-**Pre-computing the circle masks is a small but important detail.** The `ogrid`
-
-- comparison is not expensive in isolation, but at `particleCap=1000` it was
-  being called 10,000 × 10 = 100,000 times, each time producing an identical
-  result. Moving it outside the loop costs nothing and eliminates a class of
-  loop-invariant redundancy entirely.
-
-### Radial Density Optimization (Optimizations 4–5)
-
-The profiling results show that the radial density phase accounts for 72–77% of
-total runtime across all tested configurations, yet all three aggregation-phase
-optimizations leave it entirely untouched. The consequence is governed by
-Amdahl's Law: even an infinite speedup of the 25% aggregation slice yields at
-most a 1.33× overall improvement. The dominant bottleneck must be addressed
-directly.
-
-The line profiler data makes the culprit unambiguous. Eight lines inside the
-two innermost Python loops of the radial density phase account for 89.6% of its
-profiler-attributed time, even at just 25 particles. By `particleCap=1000` these
-loops execute tens of millions of iterations. Two categories of redundancy drive
-this cost.
-
-First, the sub-lattice around each reference particle is extracted row by row in
-a Python `for` loop of up to 181 iterations per radius per particle.
-Additionally, the `ogrid` + comparison expression that produces the circle mask
-is re-evaluated for every (particle, radius) pair, even though the masks are
-fixed for a given `radiusDensity` array.
-
-Second, the counting proceeds through two consecutive Python loops — one to copy
-coordinates into a `coords` array element-by-element, and one to iterate over
-every cell and increment integer counters — when masked NumPy indexing would
-suffice.
-
-#### Opt-4: Vectorized Sub-Lattice Extraction
-
-We pad the lattice once before the particle loop using `np.pad`, with a pad
-width equal to the largest circle radius (90). This guarantees that a 2-D slice
-centred on any particle is always within array bounds regardless of proximity to
-the lattice edge. The per-row loop is then replaced with a single 2-D NumPy
-slice:
-
-```python
-# Once before the particle loop:
-padded = np.pad(lattice, _MAX_RADIUS, mode='constant', constant_values=0)
-
-# Inside the (particle, radius) loop:
-pr  = int(particleCoords[particle, 0]) + _MAX_RADIUS
-pc  = int(particleCoords[particle, 1]) + _MAX_RADIUS
-sub = padded[pr - rc: pr + rc + 1, pc - rc: pc + rc + 1]  # single 2-D slice
-```
-
-All 10 circular boolean masks are pre-computed once at module load and stored in
-`_CIRCLE_MASKS`. The `ogrid` + comparison that was previously re-evaluated
-millions of times is now computed exactly 10 times total:
-
-```python
-_CIRCLE_MASKS = []
-for _r in radiusDensity:
-    _rc = int(_r)
-    _cx, _cy = np.ogrid[-_rc:_rc + 1, -_rc:_rc + 1]
-    _CIRCLE_MASKS.append(_cx * _cx + _cy * _cy <= _rc * _rc)
-```
-
-#### Opt-5: Vectorized Circle-Mask Counting
-
-With the sub-array available as a NumPy array and the mask pre-computed, both
-Python counting loops are replaced by two NumPy calls:
-
-```python
-values = sub[mask]                         # extract all cells inside the circle
-filled = int(np.count_nonzero(values))     # count occupied sites in C
-total  = len(values)
-filledDensity[width] = filled / total if total > 0 else 0.0
-```
-
-`sub[mask]` returns a 1-D array of the values at all `True` positions in the
-mask via boolean indexing. `np.count_nonzero` counts in C rather than Python.
-The `coords` intermediate array is eliminated entirely.
-
----
-
-## Performance Results (Baseline vs v1 vs v2)
-
-### Benchmark Methodology
-
-We benchmarked three implementations across `particleCap ∈ {25, 50, 100, 250,
 500, 750, 1000}` and `steps ∈ {100, 1000}`, recording total, aggregation, and
 radial density time separately for each run using `time.time()` wrappers. All
 runs were executed sequentially on the same machine. The benchmark script is
 `optimized_code/benchmark_v2.py`; raw results are in
 `optimized_code/benchmark_v2_results.csv`.
 
-| Version  | Optimizations applied                                                    |
-| -------- | ------------------------------------------------------------------------ |
-| Baseline | None — original code                                                     |
-| v1       | Opt-1 (incremental set), Opt-2 (cumsum path), Opt-3 (vec. collision)     |
-| v2       | Opt-1–3 + Opt-4 (2-D slice + pre-computed masks) + Opt-5 (vec. counting) |
+### Vectorization Optimizations (v2)
 
-### Results
-
-**Total runtime at `steps=1000`:**
-
-| particleCap | Baseline (s) | v1 (s) | v1 speedup | v2 (s) | v2 speedup |
-| ----------- | ------------ | ------ | ---------- | ------ | ---------- |
-| 25          | 2.45         | 0.056  | 43.9×      | 0.037  | 65.5×      |
-| 50          | 5.04         | 0.097  | 52.2×      | 0.048  | 104.2×     |
-| 100         | 9.86         | 0.161  | 61.3×      | 0.074  | 134.0×     |
-| 250         | 24.83        | 0.374  | 66.4×      | 0.167  | 149.0×     |
-| 500         | 50.93        | 0.755  | 67.4×      | 0.309  | 164.8×     |
-| 750         | 77.59        | 1.201  | 64.6×      | 0.525  | 147.9×     |
-| 1000        | 105.11       | 1.545  | 68.0×      | 0.727  | 144.5×     |
-
-v1 achieves a consistent 44–68× speedup over baseline. v2 adds a further 2–3×
-on top of v1, reaching 65–165× over baseline. The largest absolute saving at
-`particleCap=1000` is 104.4 seconds — a run that took 1 min 45s now completes
-in under 0.75s.
-
-**Phase breakdown at `particleCap=1000, steps=1000`:**
-
-| Version  | Aggr. time | Aggr. % | Radial time | Radial % | Total   |
-| -------- | ---------- | ------- | ----------- | -------- | ------- |
-| Baseline | 34.90s     | 33.2%   | 70.18s      | 66.8%    | 105.11s |
-| v1       | 0.315s     | 20.4%   | 1.212s      | 78.4%    | 1.545s  |
-| v2       | 0.376s     | 51.6%   | 0.333s      | 45.8%    | 0.727s  |
-
-Two structural shifts are visible. v1 reduces aggregation from 34.90s to 0.315s
-(110×), but the radial density, now 78% of a much smaller total, remains the
-bottleneck. v2 then cuts the radial density from 1.212s to 0.333s (3.6×),
-bringing both phases to roughly equal cost for the first time (~52% vs ~46%).
-The radial density speedup of v2 over the original baseline is
-70.18 / 0.333 = **211×**.
-
-**Radial density phase: v2 vs v1 at `steps=1000`:**
-
-| particleCap | v1 radial (s) | v2 radial (s) | Speedup |
-| ----------- | ------------- | ------------- | ------- |
-| 25          | 0.030         | 0.011         | 2.8×    |
-| 100         | 0.122         | 0.034         | 3.6×    |
-| 250         | 0.305         | 0.083         | 3.7×    |
-| 500         | 0.612         | 0.167         | 3.7×    |
-| 1000        | 1.212         | 0.333         | 3.6×    |
-
-The 3.6–3.7× improvement at larger particle counts is consistent and stable,
-attributed to replacing the per-row sub-lattice loop with a single 2-D NumPy
-slice and eliminating per-iteration mask recomputation.
-
-### Critical Reflection
-
-**v1's speedup of 44–68× is larger than the ~1.5× predicted from Amdahl's
-Law alone.** The Amdahl prediction assumed only the 25% aggregation slice would
-improve. In practice, the v1 benchmark runner also uses vectorized mask counting
-(`correlationLattice[mask]` + `np.count_nonzero`) for the radial density, rather
-than the full per-element Python counting loop in the original baseline. This
-means v1's numbers reflect Opt-1/2/3 plus a partial radial vectorization. The
-remaining 3.6× improvement from v2 is then attributable specifically to Opt-4:
-eliminating the per-row sub-lattice extraction loop and pre-computing the circle
-masks.
-
-**The phase balance at v2 is notable.** At baseline, radial density dominates
-at 67%. After v2 at `particleCap=1000`, both phases are roughly equal (52%
-aggr, 46% radial). This means there is no single dominant bottleneck remaining.
-Any further speedup must address both phases simultaneously — or introduce a
-new dimension of improvement such as parallelism, which is left to Student 3.
-
-**The `steps` parameter remains irrelevant across all versions.** Comparing
-`steps=100` vs `steps=1000` shows less than 6% variation in total time for
-baseline, v1, and v2 alike. The segmentation granularity of the random walk
-has no meaningful effect on total computation regardless of which optimizations
-are applied.
-
-### Radial Density Optimization (Optimizations 4–5)
-
-The profiling results show that the radial density phase accounts for 72–77% of
-total runtime across all tested configurations, yet all three aggregation-phase
-optimizations leave it entirely untouched. The consequence is governed by
-Amdahl's Law: even an infinite speedup of the 25% aggregation slice yields at
-most a 1.33× overall improvement. The dominant bottleneck must be addressed
-directly.
-
-The line profiler data makes the culprit unambiguous. Eight lines inside the
-two innermost Python loops of the radial density phase account for 89.6% of its
-profiler-attributed time, even at just 25 particles. By `particleCap=1000` these
-loops execute tens of millions of iterations. Two categories of redundancy drive
-this cost.
-
-First, the sub-lattice around each reference particle is extracted row by row in
-a Python `for` loop of up to 181 iterations per radius per particle.
-Additionally, the `ogrid` + comparison expression that produces the circle mask
-is re-evaluated for every (particle, radius) pair, even though the masks are
-fixed for a given `radiusDensity` array.
-
-Second, the counting proceeds through two consecutive Python loops — one to copy
-coordinates into a `coords` array element-by-element, and one to iterate over
-every cell and increment integer counters — when masked NumPy indexing would
-suffice.
-
-#### Opt-4: Vectorized Sub-Lattice Extraction
-
-We pad the lattice once before the particle loop using `np.pad`, with a pad
-width equal to the largest circle radius (90). This guarantees that a 2-D slice
-centred on any particle is always within array bounds regardless of proximity to
-the lattice edge. The per-row loop is then replaced with a single 2-D NumPy
-slice:
-
-```python
-# Once before the particle loop:
-padded = np.pad(lattice, _MAX_RADIUS, mode='constant', constant_values=0)
-
-# Inside the (particle, radius) loop:
-pr  = int(particleCoords[particle, 0]) + _MAX_RADIUS
-pc  = int(particleCoords[particle, 1]) + _MAX_RADIUS
-sub = padded[pr - rc: pr + rc + 1, pc - rc: pc + rc + 1]  # single 2-D slice
-```
-
-All 10 circular boolean masks are pre-computed once at module load and stored in
-`_CIRCLE_MASKS`. The `ogrid` + comparison that was previously re-evaluated
-millions of times is now computed exactly 10 times total:
-
-```python
-_CIRCLE_MASKS = []
-for _r in radiusDensity:
-    _rc = int(_r)
-    _cx, _cy = np.ogrid[-_rc:_rc + 1, -_rc:_rc + 1]
-    _CIRCLE_MASKS.append(_cx * _cx + _cy * _cy <= _rc * _rc)
-```
-
-#### Opt-5: Vectorized Circle-Mask Counting
-
-With the sub-array available as a NumPy array and the mask pre-computed, both
-Python counting loops are replaced by two NumPy calls:
-
-```python
-values = sub[mask]                         # extract all cells inside the circle
-filled = int(np.count_nonzero(values))     # count occupied sites in C
-total  = len(values)
-filledDensity[width] = filled / total if total > 0 else 0.0
-```
-
-`sub[mask]` returns a 1-D array of the values at all `True` positions in the
-mask via boolean indexing. `np.count_nonzero` counts in C rather than Python.
-The `coords` intermediate array is eliminated entirely.
-
----
-
-## Performance Results (Baseline vs v1 vs v2)
-
-### Benchmark Methodology
-
-We benchmarked three implementations across `particleCap ∈ {25, 50, 100, 250,
-500, 750, 1000}` and `steps ∈ {100, 1000}`, recording total, aggregation, and
-radial density time separately for each run using `time.time()` wrappers. All
-runs were executed sequentially on the same machine. The benchmark script is
-`optimized_code/benchmark_v2.py`; raw results are in
-`optimized_code/benchmark_v2_results.csv`.
+Hereby we call the optimized version with Opt-1/2/3 as v1, and the version with all five optimizations as v2.
 
 | Version  | Optimizations applied                                                    |
 | -------- | ------------------------------------------------------------------------ |
 | Baseline | None — original code                                                     |
-| v1       | Opt-1 (incremental set), Opt-2 (cumsum path), Opt-3 (vec. collision)     |
-| v2       | Opt-1–3 + Opt-4 (2-D slice + pre-computed masks) + Opt-5 (vec. counting) |
-
-### Results
+| v1       | Vectorized Particle Aggregation (Opt-1/2/3)     |
+| v2       | Vectorized Particle Aggregation (Opt-1/2/3) + Vectorized Radial Density Calculation (Opt-4/5) |
 
 **Total runtime at `steps=1000`:**
 
@@ -873,7 +510,41 @@ onward, while v2 peaks at ~165× around `particleCap=500` before settling to
 v2 reflects the growing aggregation cost (Opt-1 uses a Python set whose lookup
 time grows slowly with set size), which begins to limit the overall speedup.
 
-### Critical Reflection
+### Pybind11 Optimization
+The pybind11 optimization gave suboptimal results.
+
+```
+- Naive Python Loop:    67.9726 seconds
+- NumPy Vectorized:     0.2852 seconds
+- C++ (Pybind11):       4.3775 seconds
+```
+
+This was run on a big enough grid with multiple iterations (path of particle 100 steps and particle cap 1001). Considering that both the python unoptimized version and the CPP version have the same complexity (O(N^4)), this is an atractive result. The Pybind11 code was 10 times faster! This means that, for somebody that knows cpp but doesn't know optimizations in python, they can speed up their code. Of course, the numpy version is highly optimized for using vectorization and masking in order to get the best results. It is 10 times faster than the pybind11 version. But we all know that a 10 times optimization can be done by a simple change of 2 for loops hehe.
+
+### Multiprocessor Optimization
+To be noted that this multiprocessor optimization is just as proof of work. There is no point in increasing the workload of the program in hte final optimized version just to do multiple attempts, and prove that the optimization of using multiple CPU's is kept even after numpy optimizations.
+```bash
+    particleCap = 101
+    steps = 10
+    attempts = 10
+
+Finished all runs in 18 seconds.
+Finished serial runs in 94 seconds.
+
+    particleCap = 1001
+    steps = 100
+    attempts = 10
+Finished all runs in 181 seconds.
+Finished serial runs in 1013 seconds.
+```
+
+After first simulation:
+We have around 5 times faster code. For an embarasingly parrallel problem, while using 10 cpu's. Not ideal to say the least. Let's see what happens if we increase a little bit the dimension of the problem. In the end, we are on a machine that has 8 cores with hyperthreadding, we should definetelly have enough processing power to do other tasks while also running the simulation. Hence, having a spotify open, writting in vscode and browsing the web (or other idle tasks done by the user) should definetelly not interfere with the computation done by the cpu's.
+
+After second simulation:
+Around 6-7 times faster. Expectable on a machine where you have mnultiple processes doing jobs in each cpu. The other processes are not computationally expensive, but even the simple act of switching context is too heavy.
+
+## Critical Reflection
 
 **v1's speedup of 44–68× is larger than the ~1.5× predicted from Amdahl's
 Law alone.** The Amdahl prediction assumed only the 25% aggregation slice would
