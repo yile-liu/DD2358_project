@@ -129,6 +129,45 @@ for n in range(steps):
 
 Both loops access array elements one by one in Python instead of using vectorized NumPy operations. The collision detection loop also wraps every access in a `try/except IndexError` block, which adds extra overhead. Line 135 is hit 33,518 times even in this small 25-particle run.
 
+#### Memory Profiling
+At the same time, we tried doing some memory profiling on the code in order to see if there are any memory bottlenecks. However, the memory profiler we used, `memory_profiler`, was not able to give us any useful information. Given that it is python, the garbage collector can give out some very strange results, and it is hard to know if the memory usage is actually due to the code or just the garbage collector doing its thing.
+
+```
+   138   73.445 MiB    0.000 MiB        9235               while moving:
+   139   73.438 MiB 660291.219 MiB        8998                   path = generate_path(steps, startingPosition)
+   140   73.438 MiB    0.000 MiB        8998                   logicCheck = np.zeros(steps)
+   141   73.438 MiB    0.000 MiB       98497                   for n in range(steps):
+   142   73.438 MiB    0.000 MiB       89599                       try:
+   143                                                                 # Check if any point on the path is equal to a 'sticky' site
+   144   73.438 MiB    0.062 MiB       89599                           logicCheck[n] = stickyLattice[int(path[n,0]), int(path[n,1])] == 1
+   145                                                             except IndexError:
+   146                                                                 # This allows the code to continue if particles 'exit' the
+   147                                                                 # lattice, particles will be killed so has no adverse
+   148                                                                 # effect
+   149                                                                 continue
+   150   73.438 MiB    0.000 MiB       89599                       if logicCheck[n] == 1:
+   151                                                                 
+   152                                                                 # Call functions to update both lattice arrays upon collision
+   153   73.445 MiB 7339.660 MiB         100                           lattice, stickyLattice = particle_collision(logicCheck, path, lattice, stickyLattice, particleNumber)
+   154   73.445 MiB 7339.660 MiB         100                           latticeRadiusMax, radius, killRadius = lattice_radius_check(lattice, length, radius, killRadius)
+   155                                                                 
+   156   73.445 MiB    0.004 MiB         100                           latticeRadiusData.append([particleNumber, latticeRadiusMax])    
+   157   73.445 MiB    0.000 MiB         100                           moving = 0
+   158   73.445 MiB    0.000 MiB         100                           particleNumber += 1
+   159                                                                 #print('Particle', particleNumber-1, 'collided, generation radius is', radius)
+   160   73.445 MiB    0.000 MiB         100                           break
+   161   73.445 MiB    0.000 MiB        8998                   if moving:
+   162                                                             # Kill particle or carry on with same one
+   163   73.434 MiB 652951.777 MiB        8898                       kill, moving, startingPosition = kill_check(steps, path, length, startingPosition, moving, killRadius)
+```
+
+Over here, in the kill check, for the number of steps a particle can take, for every step, 65MB of data were consumed. This would mean that python is consuming large amounts of data for simple operations. This was just creating anumpy array that contains float numbers. At the same time, there are multiple math operations being done:
+
+```
+killCheck = np.sqrt(((path[:,0]-length/2)**2) + ((path[:,1]-length/2)**2))
+```
+This might mean that there is a lot of memory being consumed on "virtual registers" for intermediate results. We call them virtual, as in python the registers will still be located in RAM due to the virtualization model. A lot of optimization needs to be done.
+
 ## Optimization Methodology
 
 ### Particle Aggregation
@@ -337,6 +376,55 @@ Python interpreter dispatch on every element.
 
 ---
 
+### Pybind11 Optimization
+We decided to integrate pybind11 in order to make the code faster. We failed. We managed to get the second for loop (the one that analyses the density), and translate it into CPP. This approach is preety nice, as we can reason about the places in memory that we should be putting every data type. While operations on vectors cannot be beat easily by numpy (as a programmer will not do those optimizations than 10 expert HPC programmers that wrote numpy), complex operations on vectors, dividing them in multiple segments, doing strange operations, having multiple if statements based on indexes. These operations might be better done in CPP than in python in order to analyze the code and be able to reason if the results are not expected. At the same time, pybind11 has the posibility of being paralelized on GPU using CUDA.
+
+A small snippet of some pybind11 code:
+
+```cpp
+using namespace std;
+namespace py = pybind11;
+
+
+// we assume that the paprticleCoords and the lattice have dimensions 2
+vector<vector<double>> for_substitute(const int particleCap, vector<vector<double>> particleCoords, vector<vector<double>> lattice) {
+    // here we predefine the size as it is expensive to allocate memory, hence we allocate everything at the start
+    vector<vector<double>> filledDensityStore(10, vector<double>(particleCap, 0));
+    ....
+}
+
+PYBIND11_MODULE(optimization_pybind11, m) {
+    m.doc() = "pybind11 example plugin"; // optional module docstring
+    m.def("for_substitute", &for_substitute, py::return_value_policy::automatic);
+}
+```
+
+Just with some more lines of code, we can do this optimization. At the same time, we can reason about memory location (wether we want the cpp code to manage the lifespan of the objects), and we can directly create the CPP data structures from numpy python structures. This implementation is not ideal currently. More optimization would be needed. At the same time, we will beneficiate most out of this if we translate all the functions.
+
+### Multiprocessor optimization
+As we are students and desire easy tasks, we saw an embarasingly parrallel for loop that just went through multiple attemts of creating the fractals and computing their density, hence we just directly paralelized that
+
+```python
+time0 = time.time()
+processes = []
+for run in range(attempts):
+    p = mp.Process(target=main, args=(run, particleCap, steps, attempts, dataStore, filledDensityMeanStore, radiusDensity, latticeDataStore))
+    processes.append(p)
+    p.start()
+for p in processes:
+    p.join()
+
+time1 = time.time()
+time2 = round((time1-time0))
+print('Finished all runs in', time2, 'seconds.')
+```
+This simple optimization is bound to give good results
+
+and as we can see
+![htop](profile_code/htop_multiproc.png)
+
+The cores are working overtime in order to do the computation. And we see the 10 "cores" working.
+
 ## Performance Results (Baseline vs v1 vs v2)
 
 ### Benchmark Methodology
@@ -379,6 +467,40 @@ radial density, the projected total speedup is:
 ```
 speedup_total ≈ 1 / (0.27 + 0.73 / 30) ≈ 18×
 ```
+
+### Pybind11 Optimization
+The pybind11 optimization gave suboptimal results.
+
+```
+- Naive Python Loop:    67.9726 seconds
+- NumPy Vectorized:     0.2852 seconds
+- C++ (Pybind11):       4.3775 seconds
+```
+
+This was run on a big enough grid with multiple iterations (path of particle 100 steps and particle cap 1001). Considering that both the python unoptimized version and the CPP version have the same complexity (O(N^4)), this is an atractive result. The Pybind11 code was 10 times faster! This means that, for somebody that knows cpp but doesn't know optimizations in python, they can speed up their code. Of course, the numpy version is highly optimized for using vectorization and masking in order to get the best results. It is 10 times faster than the pybind11 version. But we all know that a 10 times optimization can be done by a simple change of 2 for loops hehe.
+
+### Multiprocessor Optimization
+To be noted that this multiprocessor optimization is just as proof of work. There is no point in increasing the workload of the program in hte final optimized version just to do multiple attempts, and prove that the optimization of using multiple CPU's is kept even after numpy optimizations.
+```bash
+    particleCap = 101
+    steps = 10
+    attempts = 10
+
+Finished all runs in 18 seconds.
+Finished serial runs in 94 seconds.
+
+    particleCap = 1001
+    steps = 100
+    attempts = 10
+Finished all runs in 181 seconds.
+Finished serial runs in 1013 seconds.
+```
+
+After first simulation:
+We have around 5 times faster code. For an embarasingly parrallel problem, while using 10 cpu's. Not ideal to say the least. Let's see what happens if we increase a little bit the dimension of the problem. In the end, we are on a machine that has 8 cores with hyperthreadding, we should definetelly have enough processing power to do other tasks while also running the simulation. Hence, having a spotify open, writting in vscode and browsing the web (or other idle tasks done by the user) should definetelly not interfere with the computation done by the cpu's.
+
+After second simulation:
+Around 6-7 times faster. Expectable on a machine where you have mnultiple processes doing jobs in each cpu. The other processes are not computationally expensive, but even the simple act of switching context is too heavy.
 
 ### Results Table
 
