@@ -1,19 +1,13 @@
 # DLA 2D Aggregate, George Richards 4228068
 import numpy as np
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 import time
+import multiprocessing as mp
 
 # Initial values and movements possible in 2D (a plane)
 length = 1250
 movements = np.array([[1,0], [-1,0], [0,1], [0,-1]])
-particleCap = 10001
-steps = 1000
-attempts = 10
-# Arrays for storing information later
-dataStore = np.zeros(shape=(particleCap-1, attempts))
-filledDensityMeanStore = np.zeros(shape=(10, attempts))
-radiusDensity = np.linspace(2, 90, 10)
-latticeDataStore = np.zeros(shape=(attempts, length+1, length+1))
+
 
 def initialise(length, movements):
     # Seed particle needs to be marked in the middle of the array/lattice
@@ -106,7 +100,9 @@ def kill_check(steps, path, length, startingPosition, moving, killRadius):
         startingPosition = path[-1] # Last position as new starting position
         return kill, moving, startingPosition
 
-for run in range(attempts):
+
+def main(run, particleCap, steps, attempts, dataStore, filledDensityMeanStore, radiusDensity, latticeDataStore):
+
     
     # More initial values
     t0 = time.time()
@@ -153,18 +149,18 @@ for run in range(attempts):
             if moving:
                 # Kill particle or carry on with same one
                 kill, moving, startingPosition = kill_check(steps, path, length, startingPosition, moving, killRadius)
-    
+
     # Plot aggregate via colourmesh and pick appropriate axis to have it fill
     # the majority of the figure
     latticeDataStore[run,:,:] = lattice[:,:]
-    plt.figure()
-    cmap = plt.cm.plasma
-    cmap.set_under(color='black')
-    plt.pcolormesh(lattice, cmap=cmap, vmin = 0.0001)
-    plt.title('Fractal no=%i' %(run+1))
-    plt.xlim((length/2)-(latticeRadiusMax*1.25),(length/2)+(latticeRadiusMax*1.25))
-    plt.ylim((length/2)-(latticeRadiusMax*1.25),(length/2)+(latticeRadiusMax*1.25))
-    plt.pause(0.1)
+#    plt.figure()
+#    cmap = plt.cm.plasma
+    # cmap.set_under(color='black')
+#    plt.pcolormesh(lattice, cmap=cmap, vmin = 0.0001)
+#    plt.title('Fractal no=%i' %(run+1))
+#    plt.xlim((length/2)-(latticeRadiusMax*1.25),(length/2)+(latticeRadiusMax*1.25))
+#    plt.ylim((length/2)-(latticeRadiusMax*1.25),(length/2)+(latticeRadiusMax*1.25))
+#    plt.pause(0.1)
     print('The radius of the fractal', run+1, 'is', latticeRadiusData[-1][1])
     N, r = zip(*latticeRadiusData)
     dataStore[:,run] = r
@@ -226,43 +222,32 @@ for run in range(attempts):
     tCorrelationFinish = round(tCorrelation2 - tCorrelation1,2)
     print('Finished correlation', run+1, 'in', tCorrelationFinish, 'seconds')
 
-# Plotting the log-log plot of N vs r
-N = np.linspace(1, particleCap-1, particleCap-1)
-dataRadiusAverage = np.zeros(particleCap-1)
-for n in range(particleCap-1):
-    dataRadiusAverage[n] = np.mean(dataStore[n,:])
-plt.figure()
-plt.plot(np.log(dataRadiusAverage), np.log(N), label='Averaged Data')
-plt.xlabel('ln(r)')
-plt.ylabel('ln(N)')
-plt.title('Fractal growth over time')
-# Calculating the gradient and plotting that as well to find Df
-gradient, intercept = np.polyfit(np.log(dataRadiusAverage), np.log(N), 1)
-plt.plot(np.log(dataRadiusAverage), gradient*np.log(dataRadiusAverage)+intercept, 'r--', label='Regression Line')
-plt.legend()
-print('Value of the fractal dimension is', gradient)
-# Building the averages and log data for the log-log C(r) vs r plot
-correlationFunctionValues = np.zeros(len(radiusDensity))
-for n in range(len(radiusDensity)):
-    correlationFunctionValues[n] = np.mean(filledDensityMeanStore[n,:])
-logFilledDensityMeans = np.log(filledDensityMeanStore)
-# Building data for the error bars
-errorRanges = np.zeros(len(radiusDensity))
-errorDensityAverages = np.zeros(len(radiusDensity))
-for n in range(len(radiusDensity)):
-    errorRanges[n] = (np.max(logFilledDensityMeans[n,:]) - np.min(logFilledDensityMeans[n,:])) / 2
-    errorDensityAverages[n] = errorRanges[n]/np.sqrt(attempts) 
-plt.figure()
-plt.errorbar(np.log(radiusDensity),np.log(correlationFunctionValues),
-             errorDensityAverages,marker='x',ls='none',label='Averaged Data',capsize=5)
-plt.title('Radial density function for all particles')
-plt.xlabel('ln(r)')
-plt.ylabel('ln(C(r))')
-# Generating gradient for this graph as well
-gradient2, intercept2 = np.polyfit(np.log(radiusDensity), np.log(correlationFunctionValues), 1)
-plt.plot(np.log(radiusDensity), gradient2*np.log(radiusDensity)+intercept2, 'r', label='Regression Line')
-plt.legend()
-print('Power law relation between C(r) and r is', gradient2)
-powerlawDimension = 2 - abs(gradient2)
-print('Fractal dimension according to power law relation is:', powerlawDimension)
-print('Finished')
+if __name__ == "__main__":
+
+    particleCap = 1001
+    steps = 100
+    attempts = 10
+    dataStore = np.zeros(shape=(particleCap-1, attempts))
+    filledDensityMeanStore = np.zeros(shape=(10, attempts))
+    radiusDensity = np.linspace(2, 90, 10)
+    latticeDataStore = np.zeros(shape=(attempts, length+1, length+1))
+    # spawn a thread for each run of the simulation, each thread will run the main function
+    time0 = time.time()
+    processes = []
+    for run in range(attempts):
+        p = mp.Process(target=main, args=(run, particleCap, steps, attempts, dataStore, filledDensityMeanStore, radiusDensity, latticeDataStore))
+        processes.append(p)
+        p.start()
+    for p in processes:
+        p.join()
+
+    time1 = time.time()
+    time2 = round((time1-time0))
+    print('Finished all runs in', time2, 'seconds.')
+    
+    time0 = time.time()
+    for run in range(attempts):
+        main(run, particleCap, steps, attempts, dataStore, filledDensityMeanStore, radiusDensity, latticeDataStore)
+    time1 = time.time()
+    time2 = round((time1-time0))
+    print('Finished serial runs in', time2, 'seconds.')
